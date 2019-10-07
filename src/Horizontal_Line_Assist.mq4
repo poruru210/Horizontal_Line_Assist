@@ -5,8 +5,9 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2019, poruru."
 #property link      "https://github.com/poruru210/Horizontal_Line_Assist"
-#property version   "1.00"
+#property version   "1.10"
 #property description "Provides a function to assist in drawing horizontal lines."
+#property icon "res\\icon.ico"
 #property strict
 #property indicator_chart_window
 
@@ -14,24 +15,45 @@
 #resource "res\\T.bmp"
 #resource "res\\V.bmp"
 
-input int  magnet_pixel              = 5;      // 最大吸着距離[ピクセル]
-input bool enable_easy_delete_object = true;   // Shift+クリック削除機能
-input bool enable_easy_copy_property = true;   // Ctrl+クリックコピー機能
-input bool enable_prev_value_check   = false;   // 前足抜けチェック機能
-input bool isUseTLineAsHLine         = true;   // トレンドラインを水平線として利用
+input string title1                    = "";        // 【マグネット】
+input int  magnet_pixel                = 5;         // 最大吸着距離[ピクセル]
+
+input string title2                    = "";        // 【ワンクリック削除<Shift+左クリック>】
+input bool enable_easy_delete_object   = true;      // 利用する
+
+input string title3                    = "";        // 【ワンクリックコピー<Ctrl+左クリック>】
+input bool enable_easy_copy_property   = true;      // 利用する
+
+input string title4                    = "";        // 【前足抜けチェック】
+input bool enable_prev_value_check     = false;     // 利用する
+
+input string title5                    = "";        // 【トレンドラインを水平線として利用】
+input bool is_use_TLINE_as_HLINE       = true;      // 利用する
+
+input string title6                    = "";        // 【オブジェクト自動選択解除】
+input bool enabele_auto_deselect       = true;      // 利用する
+
+input string title7                    = "";        // 【残時間表示】
+input bool   is_disp_bar_time          = false;     // 利用する
+input int    time_font_size            = 8;         // フォントサイズ
+input color  time_font_color           = clrYellow; // フォント色
+input int    time_offset_x             = -15;       // 位置オフセットX
+input int    time_offset_y             = -50;       // 位置オフセットY
 
 string   G_COLOR_FORMAT = "%d%d_COLOR";
 string   G_STYLE_FORMAT = "%d%d_STYLE";
 string   G_WIDTH_FORMAT = "%d%d_WIDTH";
 string   G_OP_PERIOD    = "OP_PERIOD";
 
+int      TIMER_INTERVAL = 250; //EventTiemr interval(ms)
+
 string   HLINE_FORMAT   = "Horizontal Line %d";
 string   TLINE_FORMAT   = "Trendline %d";
 string   VLINE_FORMAT   = "Vertical Line %d";
 
 string   TIP_OBJ_NAME   = "TIP_OBJ_H";
-int      TIP_OBJ_WIDTH  = 14;
-int      TIP_OBJ_HEIGHT = 14;
+int      TIP_OBJ_WIDTH  = 16;
+int      TIP_OBJ_HEIGHT = 16;
 string   TIP_HEIH_TEXT  = "H";
 string   TIP_LOW_TEXT   = "L";
 
@@ -39,6 +61,9 @@ string   CONTEXT_BTN_H          = "BTN_H";
 string   CONTEXT_BTN_T          = "BTN_T";
 string   CONTEXT_BTN_V          = "BTN_V";
 int      CONTEXT_AUTO_CLOSE_SEC = 3;
+
+string   REMAINE_TIME_OBJ_NAME   = "time";
+string   REMAINE_TIME_FONT       = "Verdana";
 
 double   newPrice = 0.0;
 datetime newTime;
@@ -57,45 +82,58 @@ bool isCtrlKeyPressed    = false;
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
 //+------------------------------------------------------------------+
-int OnInit()
-  {      
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M1);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M5);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M15);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M30);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_H1);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_H4);
-      SetDefaultGlobalValues(OBJ_HLINE, PERIOD_D1);
+int OnInit(){      
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M1);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M5);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M15);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_M30);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_H1);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_H4);
+   SetDefaultGlobalValues(OBJ_HLINE, PERIOD_D1);
+   
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_M1);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_M5);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_M15);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_M30);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_H1);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_H4);
+   SetDefaultGlobalValues(OBJ_TREND, PERIOD_D1);
+   
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M1);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M5);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M15);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M30);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_H1);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_H4);
+   SetDefaultGlobalValues(OBJ_VLINE, PERIOD_D1);
+   
+   ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
+   ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
+   ChartSetInteger(0, CHART_EVENT_MOUSE_WHEEL, true);
+   
+   EventSetMillisecondTimer(TIMER_INTERVAL);
+   
+   return(INIT_SUCCEEDED);
+}
 
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_M1);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_M5);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_M15);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_M30);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_H1);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_H4);
-      SetDefaultGlobalValues(OBJ_TREND, PERIOD_D1);
-      
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M1);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M5);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M15);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_M30);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_H1);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_H4);
-      SetDefaultGlobalValues(OBJ_VLINE, PERIOD_D1);
-      
-      ChartSetInteger(0, CHART_EVENT_OBJECT_CREATE, true);
-      ChartSetInteger(0, CHART_EVENT_MOUSE_MOVE, true);
-      EventSetMillisecondTimer(500);
-      
-      return(INIT_SUCCEEDED);
-  }
- 
+void OnDeinit(const int reason){
+   EventKillTimer();
+   DelGlobalValueIfExist(G_OP_PERIOD);
+   HideContextMenu();
+   HideTip();
+   ObjectDelete(0, REMAINE_TIME_OBJ_NAME);
+
+}
+
+
 //+------------------------------------------------------------------+
 //| called when the Timer event occurs                          |
 //+------------------------------------------------------------------+
  void OnTimer(){
    AutoCloseContextMenu();
- }
+   UpdateRemainTime();
+}
+
  
 //+------------------------------------------------------------------+
 //| Custom indicator iteration function                              |
@@ -119,8 +157,6 @@ int OnCalculate(const int rates_total,
 
 //+------------------------------------------------------------------+
 
-
-
 void OnChartEvent(const int    id,
                   const long   &lparam,
                   const double &dparam,
@@ -129,6 +165,7 @@ void OnChartEvent(const int    id,
       //ref. https://www.mql5.com/ja/docs/constants/chartconstants/enum_chartevents
       switch(id){
          case CHARTEVENT_KEYDOWN:
+            //OnChartKeyDown(lparam);
             break;
          case CHARTEVENT_MOUSE_MOVE:
             OnChartMouseMove((int)lparam, (int)dparam, sparam);
@@ -159,6 +196,10 @@ void OnChartEvent(const int    id,
             break;
       }
   }
+  
+void OnChartKeyDown(long key_code){
+  
+}
   
 void OnChartObjectCreate(string object_name){
    if(GlobalVariableCheck(G_OP_PERIOD)){
@@ -199,7 +240,7 @@ void OnChartMouseMove(int x, int y, string object_name){
       return;
    }
    
-   if(isUseTLineAsHLine && isMouseLeftPressed && selected_obj_type==OBJ_TREND){
+   if(is_use_TLINE_as_HLINE && isMouseLeftPressed && selected_obj_type==OBJ_TREND){
       double price = ObjectGetDouble(0, selected_obj_name, OBJPROP_PRICE1);
       ObjectSetDouble(0, selected_obj_name, OBJPROP_PRICE2, price);       
    }
@@ -214,18 +255,22 @@ void OnChartObjectDrag(string object_name){
       if(selected_obj_type == OBJ_HLINE){
          ObjectSetDouble(0, object_name, OBJPROP_PRICE, newPrice);
       }
-      else if(isUseTLineAsHLine && selected_obj_type == OBJ_TREND){
+      else if(is_use_TLINE_as_HLINE && selected_obj_type == OBJ_TREND){
          ObjectSetDouble(0, selected_obj_name, OBJPROP_PRICE1, newPrice);
          ObjectSetDouble(0, selected_obj_name, OBJPROP_PRICE2, newPrice);  
       }
       ObjectSetInteger(0, selected_obj_name, OBJPROP_SELECTED, false);
-   }         
+   }
+   
    selected_obj_name = NULL;
    HideTip();
 }
 
 void OnChartObjectChange(string object_name){
    BackupObjectProperties(object_name, ObjectType(object_name));
+   if(enabele_auto_deselect){
+      ObjectSet(object_name, OBJPROP_SELECTED, false);  
+   }
 }
 
 bool MagnetTo(int x, int y){
@@ -233,16 +278,15 @@ bool MagnetTo(int x, int y){
    int window;
    datetime time;
    double price;
-   if(ChartXYToTimePrice(0, x, y, window, time, price)){
+   if(ChartXYToTimePrice(0, x, y, window, time, price) && time <= Time[0]){
       int i=iBarShift(NULL, 0, time);
-      
+
       double high_price      = High[i];
       double low_price       = Low[i];
       color  fore_color      = clrWhite;
       
       int pixel_x,pixel_y;  
       if(ChartTimePriceToXY(0, 0, time, high_price, pixel_x, pixel_y) && MathAbs(pixel_y - y) < magnet_pixel){
-         Print(CHART_WIDTH_IN_PIXELS );
          x = pixel_x - TIP_OBJ_WIDTH / 2;
          y = pixel_y - TIP_OBJ_HEIGHT - 5;
          if(enable_prev_value_check && high_price <= High[i+1]){
@@ -296,23 +340,38 @@ void HideTip(){
 
 
 bool DeleteObjectWithShiftKey(string object_name){
-      if(enable_easy_delete_object && isShiftKeyPressed && isMouseLeftPressed){
+      if(enable_easy_delete_object &&IsDeletableObjectType(object_name) && isShiftKeyPressed && isMouseLeftPressed){
          ObjectDelete(0, object_name);
          selected_obj_name = NULL;
          return true;
       }
       return false;
-  }
+}
+
+bool IsDeletableObjectType(string object_name){
+   int type = ObjectType(object_name);
+   return type == OBJ_HLINE
+       || type == OBJ_TREND
+       || type == OBJ_VLINE 
+       || type == OBJ_RECTANGLE;
+}
 
 bool DispContextMenu(double posX, double posY)
 {
-   if(newPrice == 0.0){
+   if(!isMouseRightPressed){
       return false;
    }
-   if(isMouseRightPressed==false){
-      return false;
+   
+   if(isDispTip){
+      CreateDrawLineButtons(posX, posY);
    }
+  
+   isDispContext=true;
+   timeContextDisp=TimeCurrent();
+   return true;
+}
 
+void CreateDrawLineButtons(double posX, double posY){
    ObjectCreate(0,CONTEXT_BTN_H,OBJ_BITMAP_LABEL,0,0,0);
    ObjectSet(CONTEXT_BTN_H,OBJPROP_SELECTABLE,false);
    ObjectSet(CONTEXT_BTN_H,OBJPROP_XDISTANCE,posX-30);
@@ -329,11 +388,7 @@ bool DispContextMenu(double posX, double posY)
    ObjectSet(CONTEXT_BTN_H,OBJPROP_SELECTABLE,false);
    ObjectSet(CONTEXT_BTN_V,OBJPROP_XDISTANCE,posX-30);
    ObjectSet(CONTEXT_BTN_V,OBJPROP_YDISTANCE,posY + TIP_OBJ_HEIGHT + TIP_OBJ_HEIGHT);
-   ObjectSetString(0,CONTEXT_BTN_V,OBJPROP_BMPFILE,0, "::res\\V.bmp"); 
-  
-   isDispContext=true;
-   timeContextDisp=TimeCurrent();
-   return true;
+   ObjectSetString(0,CONTEXT_BTN_V,OBJPROP_BMPFILE,0, "::res\\V.bmp");
 }
 
 void HideContextMenu(){
@@ -341,6 +396,7 @@ void HideContextMenu(){
    ObjectDelete(0, CONTEXT_BTN_T);
    ObjectDelete(0, CONTEXT_BTN_V);
    newPrice=0.0;
+
    isDispContext=false;
    ChartRedraw(0);
 }
@@ -415,7 +471,6 @@ int GetWidth(int object_type, int period){
    }
 }
 
-
 void BackupObjectProperties(string object_name, int object_type){
    if(object_type==OBJ_HLINE||object_type==OBJ_TREND||object_type==OBJ_VLINE){
       GlobalVariableSet(StringFormat(G_COLOR_FORMAT, Period(), object_type), ObjectGetInteger(0, object_name, OBJPROP_COLOR));
@@ -474,4 +529,43 @@ void SetWidthIfNotExist(int object_type, int period){
       GlobalVariableSet(key, 1);
    }
 }
-  
+
+void DelGlobalValueIfExist(string gvariable_name){
+   if(GlobalVariableCheck(gvariable_name)){
+      GlobalVariableDel(gvariable_name);
+   }
+}
+ 
+void UpdateRemainTime(){
+   if(!is_disp_bar_time){
+      return;
+   }
+   double i;
+   int m,s;
+   m=Time[0]+Period()*60-TimeCurrent();
+   i=m/60.0;
+   s=m%60;
+   m=(m-m%60)/60;
+
+   if(ObjectFind(REMAINE_TIME_OBJ_NAME) != 0)
+   {
+      //create hints label.  
+      ObjectCreate(0, REMAINE_TIME_OBJ_NAME, OBJ_LABEL, 0, 0, 0);
+         
+      //set properties.
+      ObjectSetInteger(0, REMAINE_TIME_OBJ_NAME, OBJPROP_COLOR, time_font_color);
+      ObjectSetInteger(0, REMAINE_TIME_OBJ_NAME, OBJPROP_SELECTABLE, false);
+      ObjectSetInteger(0, REMAINE_TIME_OBJ_NAME, OBJPROP_HIDDEN, true); 
+      ObjectSetInteger(0, REMAINE_TIME_OBJ_NAME, OBJPROP_ZORDER, 0);  
+         
+      ObjectSetString(0, REMAINE_TIME_OBJ_NAME, OBJPROP_FONT, REMAINE_TIME_FONT);
+      ObjectSetInteger(0, REMAINE_TIME_OBJ_NAME, OBJPROP_FONTSIZE, time_font_size);      
+   }
+   
+   int pixel_x,pixel_y;  
+   ChartTimePriceToXY(0, 0, Time[0], High[0], pixel_x, pixel_y);
+   string text = StringFormat("NEXT %d:%02d", m, s);
+   ObjectSetString(0, REMAINE_TIME_OBJ_NAME, OBJPROP_TEXT, text);
+   ObjectSetInteger(0,REMAINE_TIME_OBJ_NAME, OBJPROP_XDISTANCE, pixel_x + time_offset_x);
+   ObjectSetInteger(0,REMAINE_TIME_OBJ_NAME, OBJPROP_YDISTANCE, pixel_y + time_offset_y);  
+ }
